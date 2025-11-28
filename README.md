@@ -104,8 +104,8 @@ Szczegóły: Zobacz `LLM_CLASSIFIER_README.md`
 ### 1. Klonowanie repozytorium
 
 ```bash
-git clone <repository-url>
-cd klasyfikacja_dokumentow
+git clone https://github.com/marioabc/document_classify.git
+cd document_classify
 ```
 
 ### 2. Konfiguracja zmiennych środowiskowych
@@ -221,22 +221,30 @@ curl -X POST "http://localhost:8000/classify/merged" \
 
 ### Endpoint 3: Klasyfikacja połączonych plików (asynchroniczna z callbackiem)
 
-**POST** `/classify/merged/{element_id}`
+**POST** `/classify/merged/async`
 
 **NOWY!** Asynchroniczne przetwarzanie - zwraca natychmiastową odpowiedź (201), a po zakończeniu klasyfikacji wysyła wynik przez POST callback do zewnętrznego API.
 
 ```bash
-curl -X POST "http://localhost:8000/classify/merged/12345" \
+curl -X POST "http://localhost:8000/classify/merged/async" \
+  -F "recipeId=DOC_BADANIE_LK" \
+  -F "elementId=12345" \
   -F "files=@page1.jpg" \
   -F "files=@page2.jpg"
 ```
+
+**Parametry multipart/form-data:**
+- `recipeId` (string, required) - Oczekiwany typ dokumentu (np. `DOC_BADANIE_LK`)
+- `elementId` (string, required) - Identyfikator elementu w zewnętrznym systemie
+- `files` (files, required) - Pliki do sklasyfikowania (co najmniej 1)
 
 **Response (201 Created - natychmiastowa):**
 ```json
 {
   "status": "accepted",
   "message": "Document processing started",
-  "element_id": "12345",
+  "recipeId": "DOC_BADANIE_LK",
+  "elementId": "12345",
   "files_count": 2
 }
 ```
@@ -245,22 +253,28 @@ curl -X POST "http://localhost:8000/classify/merged/12345" \
 
 System automatycznie wyśle POST request do:
 ```
-POST http://app:9091/public/api/v1/checklists/elements/12345/ai-validate
+POST http://localhost:9091/public/api/v1/checklists/elements/{elementId}/ai-validate
 Content-Type: application/json
 
 {
-  "document_type": "DOC_BADANIE_LK",
-  "confidence": 0.95
+  "classify_document_type": "DOC_BADANIE_LK",
+  "classify_confidence": 0.95,
+  "confidence": 1.0,
+  "recipe_id": "DOC_BADANIE_LK"
 }
 ```
+
+**Logika obliczania `confidence`:**
+- Jeśli `recipeId` == `classify_document_type` AND `classify_confidence` > 75%: `confidence = 1.0`
+- Jeśli `recipeId` == `classify_document_type` AND `classify_confidence` 50-75%: `confidence = 0.5`
+- Jeśli `recipeId` == `classify_document_type` AND `classify_confidence` < 50%: `confidence = 0.0`
+- Jeśli `recipeId` != `classify_document_type`: `confidence = 0.0` (niezależnie od classify_confidence)
 
 **Use case:**
 - Integracja z zewnętrznym systemem (np. systemem checklist)
 - Nie chcesz czekać na zakończenie przetwarzania (OCR może trwać kilka sekund)
 - Zewnętrzny system otrzyma wynik automatycznie przez callback
-
-**Parametry:**
-- `{element_id}` - identyfikator elementu w zewnętrznym systemie (przekazywany w URL callbacku)
+- Weryfikacja zgodności sklasyfikowanego typu z oczekiwanym (recipeId)
 
 ---
 
@@ -366,23 +380,34 @@ print(f"Typ: {result['classification']['document_type']}")
 import requests
 
 # Wyślij do przetwarzania asynchronicznego
-element_id = "12345"
+data = {
+    "recipeId": "DOC_BADANIE_LK",
+    "elementId": "12345"
+}
+
 files = [
     ("files", open("page1.jpg", "rb")),
     ("files", open("page2.jpg", "rb"))
 ]
 
 response = requests.post(
-    f"http://localhost:8000/classify/merged/{element_id}",
+    "http://localhost:8000/classify/merged/async",
+    data=data,
     files=files
 )
 
 # Natychmiastowa odpowiedź (201)
 print(response.json())
-# {"status": "accepted", "element_id": "12345", ...}
+# {"status": "accepted", "recipeId": "DOC_BADANIE_LK", "elementId": "12345", "files_count": 2}
 
 # Wynik zostanie wysłany callbackiem do:
-# POST http://app:9091/public/api/v1/checklists/elements/12345/ai-validate
+# POST http://localhost:9091/public/api/v1/checklists/elements/12345/ai-validate
+# Payload: {
+#   "classify_document_type": "DOC_BADANIE_LK",
+#   "classify_confidence": 0.95,
+#   "confidence": 1.0,  # obliczone na podstawie zgodności recipeId
+#   "recipe_id": "DOC_BADANIE_LK"
+# }
 ```
 
 ### Przykład 4: Batch upload z analizą kompletności
@@ -438,7 +463,7 @@ except requests.exceptions.ConnectionError:
 ## Struktura projektu
 
 ```
-klasyfikacja_dokumentow/
+document_classify/
 ├── app/
 │   ├── config.py                      # Konfiguracja aplikacji
 │   ├── models.py                      # Modele Pydantic (23 typy dokumentów)
@@ -489,12 +514,12 @@ docker-compose exec api pytest tests/test_classifier.py
 
 ## Podsumowanie endpointów API
 
-| Endpoint | Metoda | Opis | Zwraca wynik |
-|----------|--------|------|--------------|
-| `/classify` | POST | Klasyfikuj jeden plik | Synchronicznie (200) |
-| `/classify/merged` | POST | Sklej wiele plików w jeden dokument | Synchronicznie (200) |
-| `/classify/merged/{element_id}` | POST | Sklej + callback po zakończeniu | **Asynchronicznie (201)** |
-| `/classify/batch` | POST | Klasyfikuj wiele osobnych dokumentów | Synchronicznie (200) |
+| Endpoint | Metoda | Opis | Parametry | Zwraca wynik |
+|----------|--------|------|-----------|--------------|
+| `/classify` | POST | Klasyfikuj jeden plik | `file` | Synchronicznie (200) |
+| `/classify/merged` | POST | Sklej wiele plików w jeden dokument | `files[]` | Synchronicznie (200) |
+| `/classify/merged/async` | POST | Sklej + callback po zakończeniu | `recipeId`, `elementId`, `files[]` | **Asynchronicznie (201)** |
+| `/classify/batch` | POST | Klasyfikuj wiele osobnych dokumentów | `files[]` | Synchronicznie (200) |
 
 ## Dokumentacja API
 
@@ -555,7 +580,7 @@ docker-compose exec ollama ollama pull llama3.2:7b
 **Rozwiązanie**: Modele są pobierane podczas budowania obrazu. Jeśli wystąpił błąd:
 ```bash
 docker-compose down
-docker rmi klasyfikacja_dokumentow-api
+docker rmi document_classify-api
 docker-compose build --no-cache api
 ```
 
@@ -648,8 +673,8 @@ Wszystkie ustawienia znajdują się w pliku `.env`:
 
 ```bash
 # 1. Sklonuj projekt
-git clone https://github.com/twoje-repo/klasyfikacja_dokumentow.git
-cd klasyfikacja_dokumentow
+git clone https://github.com/marioabc/document_classify.git
+cd document_classify
 
 # 2. Konfiguracja
 cp .env.example .env
@@ -677,7 +702,7 @@ Zobacz **`DEPLOYMENT_CHECKLIST.md`** - szybki checklist krok po kroku
 
 ```bash
 # Na serwerze produkcyjnym:
-cd klasyfikacja_dokumentow
+cd document_classify
 git pull
 docker-compose down
 docker-compose up -d --build
@@ -751,7 +776,7 @@ MIT License
 ## Wsparcie
 
 - **Dokumentacja**: Zobacz pliki `*.md` w projekcie
-- **Issues**: https://github.com/twoje-repo/klasyfikacja_dokumentow/issues
+- **Issues**: https://github.com/marioabc/document_classify/issues
 - **Deployment**: Zobacz `DEPLOYMENT.md`
 - **LLM Classifier**: Zobacz `LLM_CLASSIFIER_README.md`
 
