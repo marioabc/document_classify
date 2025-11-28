@@ -232,15 +232,28 @@ async def classify_documents_batch(files: List[UploadFile] = File(...)):
     )
 
 
-def send_classification_callback(element_id: str, document_type: str, confidence: float):
+def send_classification_callback(element_id: str, recipe_id: str, document_type: str, classify_confidence: float):
     """
     Send classification result to external API as callback
     """
     callback_url = f"http://localhost:9091/public/api/v1/checklists/elements/{element_id}/ai-validate"
 
+    # Calculate confidence based on recipe_id match and classify_confidence
+    if recipe_id == document_type:
+        if classify_confidence > 0.75:
+            confidence = 1.0
+        elif classify_confidence >= 0.5:
+            confidence = 0.5
+        else:
+            confidence = 0.0
+    else:
+        confidence = 0.0
+
     payload = {
         "classify_document_type": document_type,
-        "classify_confidence": confidence
+        "classify_confidence": classify_confidence,
+        "confidence": confidence,
+        "recipe_id": recipe_id
     }
 
     try:
@@ -303,7 +316,7 @@ def process_merged_document_async(element_id: str, recipe_id: str, files_data: L
             storage_service.cleanup_temp_file(file_path)
 
         # Send callback with classification result
-        send_classification_callback(element_id, document_type.value, confidence)
+        send_classification_callback(element_id, recipe_id, document_type.value, confidence)
 
         logger.info(f"Background processing completed for element {element_id}")
 
