@@ -25,6 +25,7 @@ System automatycznie klasyfikuje dokumenty medyczne na podstawie wyekstrahowaneg
 System rozpoznaje **23 typy dokumentów medycznych**:
 
 #### Badania laboratoryjne
+
 - `DOC_BADANIE_RH` - Grupa krwi + RH
 - `DOC_BADANIE_MORF` - Morfologia krwi
 - `DOC_BADANIE_APTT` - APTT (czas częściowej tromboplastyny)
@@ -36,20 +37,24 @@ System rozpoznaje **23 typy dokumentów medycznych**:
 - `DOC_BADANIE_TSH` - TSH, FT3, FT4 (tarczyca)
 
 #### Badania wirusologiczne
+
 - `DOC_BADANIE_WZWB` - Szczepienie przeciw WZW typ B
 - `DOC_BADANIE_HBS` - Poziom przeciwciał HBS
 - `DOC_BADANIE_ANTYHBS` - Antygen HBS
 - `DOC_BADANIE_ANTYHCV` - Antygen HCV
 
 #### Badania obrazowe i diagnostyczne
+
 - `DOC_BADANIE_RTGKP` - RTG klatki piersiowej
 - `DOC_BADANIE_EKG` - EKG spoczynkowe
 
 #### Dokumentacja medyczna
+
 - `DOC_BADANIE_KISZP` - Karta informacyjna z pobytu szpitalnego
 - `DOC_BADANIE_OPZAB` - Opis zabiegu operacyjnego
 
 #### Zaświadczenia specjalistyczne
+
 - `DOC_BADANIE_INTERN` - Zaświadczenie od internisty/pediatry
 - `DOC_BADANIE_LK` - Zaświadczenie od kardiologa
 - `DOC_BADANIE_LN` - Zaświadczenie od neurologa
@@ -57,6 +62,7 @@ System rozpoznaje **23 typy dokumentów medycznych**:
 - `DOC_BADANIE_ZASONK` - Zaświadczenie od onkologa
 
 #### Inne
+
 - `inne` - Dokumenty niepasujące do powyższych kategorii
 
 ## Wymagania
@@ -72,6 +78,7 @@ System rozpoznaje **23 typy dokumentów medycznych**:
 System wykorzystuje **dwupoziomową klasyfikację**:
 
 ### 1. **Klasyfikator LLM (Ollama)** - główny
+
 - Używa lokalnego modelu językowego (domyślnie `llama3.2:3b`)
 - **Rozumie kontekst**, nie tylko słowa kluczowe
 - Radzi sobie z **błędami OCR**
@@ -79,11 +86,13 @@ System wykorzystuje **dwupoziomową klasyfikację**:
 - Jeśli niedostępny lub pewność < 0.5 → fallback do reguł
 
 ### 2. **Klasyfikator oparty na regułach** - fallback
+
 - Wyszukuje słowa kluczowe w tekście
 - Szybki, ale mniej dokładny
 - Używany gdy LLM jest niedostępny
 
 **Przykład:**
+
 ```
 Tekst: "ZAŚWIADCZENIE O SZCZEPIENIU PRZECIW WZW TYPU B"
 
@@ -160,6 +169,7 @@ curl -X POST "http://localhost:8000/classify" \
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -194,6 +204,7 @@ curl -X POST "http://localhost:8000/classify/merged" \
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "id": "660e8400-e29b-41d4-a716-446655440001",
@@ -234,43 +245,48 @@ curl -X POST "http://localhost:8000/classify/merged/async" \
 ```
 
 **Parametry multipart/form-data:**
+
 - `recipeId` (string, required) - Oczekiwany typ dokumentu (np. `DOC_BADANIE_LK`)
 - `elementId` (string, required) - Identyfikator elementu w zewnętrznym systemie
 - `files` (files, required) - Pliki do sklasyfikowania (co najmniej 1)
 
 **Response (201 Created - natychmiastowa):**
+
 ```json
 {
   "status": "accepted",
   "message": "Document processing started",
   "recipeId": "DOC_BADANIE_LK",
   "elementId": "12345",
-  "files_count": 2
+  "filesCount": 2
 }
 ```
 
 **Callback (wykonywany PO klasyfikacji):**
 
 System automatycznie wyśle POST request do:
+
 ```
 POST http://localhost:9091/public/api/v1/checklists/elements/{elementId}/ai-validate
 Content-Type: application/json
 
 {
-  "classify_document_type": "DOC_BADANIE_LK",
-  "classify_confidence": 0.95,
+  "classifyDocumentType": "DOC_BADANIE_LK",
+  "classifyConfidence": 0.95,
   "confidence": 1.0,
-  "recipe_id": "DOC_BADANIE_LK"
+  "recipeId": "DOC_BADANIE_LK"
 }
 ```
 
 **Logika obliczania `confidence`:**
+
 - Jeśli `recipeId` == `classify_document_type` AND `classify_confidence` > 75%: `confidence = 1.0`
 - Jeśli `recipeId` == `classify_document_type` AND `classify_confidence` 50-75%: `confidence = 0.5`
 - Jeśli `recipeId` == `classify_document_type` AND `classify_confidence` < 50%: `confidence = 0.0`
 - Jeśli `recipeId` != `classify_document_type`: `confidence = 0.0` (niezależnie od classify_confidence)
 
 **Use case:**
+
 - Integracja z zewnętrznym systemem (np. systemem checklist)
 - Nie chcesz czekać na zakończenie przetwarzania (OCR może trwać kilka sekund)
 - Zewnętrzny system otrzyma wynik automatycznie przez callback
@@ -292,6 +308,7 @@ curl -X POST "http://localhost:8000/classify/batch" \
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "total_documents": 3,
@@ -398,7 +415,7 @@ response = requests.post(
 
 # Natychmiastowa odpowiedź (201)
 print(response.json())
-# {"status": "accepted", "recipeId": "DOC_BADANIE_LK", "elementId": "12345", "files_count": 2}
+# {"status": "accepted", "recipeId": "DOC_BADANIE_LK", "elementId": "12345", "filesCount": 2}
 
 # Wynik zostanie wysłany callbackiem do:
 # POST http://localhost:9091/public/api/v1/checklists/elements/12345/ai-validate
@@ -514,12 +531,12 @@ docker-compose exec api pytest tests/test_classifier.py
 
 ## Podsumowanie endpointów API
 
-| Endpoint | Metoda | Opis | Parametry | Zwraca wynik |
-|----------|--------|------|-----------|--------------|
-| `/classify` | POST | Klasyfikuj jeden plik | `file` | Synchronicznie (200) |
-| `/classify/merged` | POST | Sklej wiele plików w jeden dokument | `files[]` | Synchronicznie (200) |
-| `/classify/merged/async` | POST | Sklej + callback po zakończeniu | `recipeId`, `elementId`, `files[]` | **Asynchronicznie (201)** |
-| `/classify/batch` | POST | Klasyfikuj wiele osobnych dokumentów | `files[]` | Synchronicznie (200) |
+| Endpoint                 | Metoda | Opis                                 | Parametry                          | Zwraca wynik              |
+| ------------------------ | ------ | ------------------------------------ | ---------------------------------- | ------------------------- |
+| `/classify`              | POST   | Klasyfikuj jeden plik                | `file`                             | Synchronicznie (200)      |
+| `/classify/merged`       | POST   | Sklej wiele plików w jeden dokument  | `files[]`                          | Synchronicznie (200)      |
+| `/classify/merged/async` | POST   | Sklej + callback po zakończeniu      | `recipeId`, `elementId`, `files[]` | **Asynchronicznie (201)** |
+| `/classify/batch`        | POST   | Klasyfikuj wiele osobnych dokumentów | `files[]`                          | Synchronicznie (200)      |
 
 ## Dokumentacja API
 
@@ -553,7 +570,9 @@ docker-compose exec postgres psql -U medical_user -d medical_docs
 ## Troubleshooting
 
 ### Problem: Ollama nie pobiera modelu
+
 **Rozwiązanie**: Model pobiera się automatycznie przy pierwszym uruchomieniu. Sprawdź logi:
+
 ```bash
 docker-compose logs ollama-init
 docker-compose logs ollama
@@ -566,18 +585,24 @@ docker-compose exec ollama ollama list
 ```
 
 ### Problem: Niska dokładność klasyfikacji
+
 **Rozwiązanie**: Zmień model na większy w `.env`:
+
 ```bash
 OLLAMA_MODEL=llama3.2:7b  # lub mistral
 ```
+
 Następnie:
+
 ```bash
 docker-compose restart ollama
 docker-compose exec ollama ollama pull llama3.2:7b
 ```
 
 ### Problem: EasyOCR nie pobiera modeli
+
 **Rozwiązanie**: Modele są pobierane podczas budowania obrazu. Jeśli wystąpił błąd:
+
 ```bash
 docker-compose down
 docker rmi document_classify-api
@@ -585,13 +610,17 @@ docker-compose build --no-cache api
 ```
 
 ### Problem: Out of memory podczas przetwarzania
+
 **Rozwiązanie**:
+
 - Zwiększ pamięć Docker do 8GB (dla Ollama)
 - Użyj mniejszego modelu: `OLLAMA_MODEL=llama3.2:1b`
 - Zmniejsz rozdzielczość obrazów przed wysłaniem
 
 ### Problem: Błędy połączenia z PostgreSQL
+
 **Rozwiązanie**:
+
 ```bash
 docker-compose ps
 docker-compose logs postgres
@@ -599,14 +628,18 @@ docker-compose logs postgres
 ```
 
 ### Problem: Wolne przetwarzanie
+
 **Rozwiązanie**:
+
 - **GPU**: Włącz `OCR_GPU=True` w `.env` (wymaga NVIDIA GPU)
 - **Model**: Użyj mniejszego modelu Ollama (`llama3.2:1b`)
 - **Workers**: Zwiększ liczbę workerów w `docker/Dockerfile.api`
 - **Async**: Użyj endpointa `/classify/merged/{element_id}` dla dużych plików
 
 ### Problem: Callback nie działa
+
 **Rozwiązanie**:
+
 ```bash
 # Sprawdź logi API
 docker-compose logs api | grep "callback"
@@ -621,38 +654,39 @@ Wszystkie ustawienia znajdują się w pliku `.env`:
 
 ### Podstawowe ustawienia
 
-| Zmienna | Opis | Domyślna wartość |
-|---------|------|------------------|
-| `APP_NAME` | Nazwa aplikacji | Medical Document Classifier |
-| `APP_VERSION` | Wersja aplikacji | 1.0.0 |
-| `DEBUG` | Tryb debug (ustaw `False` w prod!) | True |
-| `API_PORT` | Port API | 8000 |
-| `LOG_LEVEL` | Poziom logowania | INFO |
+| Zmienna       | Opis                               | Domyślna wartość            |
+| ------------- | ---------------------------------- | --------------------------- |
+| `APP_NAME`    | Nazwa aplikacji                    | Medical Document Classifier |
+| `APP_VERSION` | Wersja aplikacji                   | 1.0.0                       |
+| `DEBUG`       | Tryb debug (ustaw `False` w prod!) | True                        |
+| `API_PORT`    | Port API                           | 8000                        |
+| `LOG_LEVEL`   | Poziom logowania                   | INFO                        |
 
 ### Baza danych
 
-| Zmienna | Opis | Domyślna wartość |
-|---------|------|------------------|
-| `POSTGRES_USER` | Użytkownik PostgreSQL | medical_user |
-| `POSTGRES_PASSWORD` | Hasło PostgreSQL | **ZMIEŃ!** |
-| `POSTGRES_DB` | Nazwa bazy | medical_docs |
-| `POSTGRES_HOST` | Host bazy | postgres |
+| Zmienna             | Opis                  | Domyślna wartość |
+| ------------------- | --------------------- | ---------------- |
+| `POSTGRES_USER`     | Użytkownik PostgreSQL | medical_user     |
+| `POSTGRES_PASSWORD` | Hasło PostgreSQL      | **ZMIEŃ!**       |
+| `POSTGRES_DB`       | Nazwa bazy            | medical_docs     |
+| `POSTGRES_HOST`     | Host bazy             | postgres         |
 
 ### OCR (EasyOCR)
 
-| Zmienna | Opis | Domyślna wartość |
-|---------|------|------------------|
-| `OCR_LANGUAGES` | Języki OCR (oddzielone przecinkami) | pl,en |
-| `OCR_GPU` | Użycie GPU dla OCR | False |
+| Zmienna         | Opis                                | Domyślna wartość |
+| --------------- | ----------------------------------- | ---------------- |
+| `OCR_LANGUAGES` | Języki OCR (oddzielone przecinkami) | pl,en            |
+| `OCR_GPU`       | Użycie GPU dla OCR                  | False            |
 
 ### LLM Classifier (Ollama)
 
-| Zmienna | Opis | Domyślna wartość |
-|---------|------|------------------|
-| `OLLAMA_URL` | URL serwisu Ollama | http://ollama:11434 |
-| `OLLAMA_MODEL` | Model do klasyfikacji | llama3.2:3b |
+| Zmienna        | Opis                  | Domyślna wartość    |
+| -------------- | --------------------- | ------------------- |
+| `OLLAMA_URL`   | URL serwisu Ollama    | http://ollama:11434 |
+| `OLLAMA_MODEL` | Model do klasyfikacji | llama3.2:3b         |
 
 **Dostępne modele:**
+
 - `llama3.2:1b` - Najszybszy, niska dokładność (1GB RAM)
 - `llama3.2:3b` - **Domyślny** - OK dokładność (2GB RAM)
 - `llama3.2:7b` - **Zalecany** - dobra dokładność (4GB RAM)
@@ -660,12 +694,12 @@ Wszystkie ustawienia znajdują się w pliku `.env`:
 
 ### Pliki
 
-| Zmienna | Opis | Domyślna wartość |
-|---------|------|------------------|
-| `MAX_FILE_SIZE` | Maks. rozmiar pliku (bajty) | 10485760 (10MB) |
-| `ALLOWED_EXTENSIONS` | Dozwolone rozszerzenia | pdf,png,jpg,jpeg,tiff |
-| `UPLOAD_DIR` | Katalog uploadów | /app/data/uploads |
-| `PROCESSED_DIR` | Katalog przetworzonych | /app/data/processed |
+| Zmienna              | Opis                        | Domyślna wartość      |
+| -------------------- | --------------------------- | --------------------- |
+| `MAX_FILE_SIZE`      | Maks. rozmiar pliku (bajty) | 10485760 (10MB)       |
+| `ALLOWED_EXTENSIONS` | Dozwolone rozszerzenia      | pdf,png,jpg,jpeg,tiff |
+| `UPLOAD_DIR`         | Katalog uploadów            | /app/data/uploads     |
+| `PROCESSED_DIR`      | Katalog przetworzonych      | /app/data/processed   |
 
 ## Deployment produkcyjny
 
@@ -690,6 +724,7 @@ curl http://localhost:8000/health
 ### Szczegółowa instrukcja
 
 Zobacz **`DEPLOYMENT.md`** - pełna instrukcja deploymentu z:
+
 - Konfiguracją Nginx + SSL
 - Backupami bazy danych
 - Monitoringiem i logami
@@ -737,6 +772,7 @@ pip install slowapi
 ### 3. Monitoring i metryki
 
 Dodaj Prometheus + Grafana do monitorowania:
+
 - Czas przetwarzania dokumentów
 - Liczba requestów
 - Użycie pamięci/CPU
@@ -763,6 +799,7 @@ callback_url = f"https://twoja-domena.com/api/callback/{element_id}"
 ## Dalszy rozwój
 
 Planowane funkcjonalności:
+
 - [ ] Wsparcie dla dokumentów PDF (wielostronicowych)
 - [ ] Dashboard do monitorowania klasyfikacji
 - [ ] API do fine-tuningu modelu LLM

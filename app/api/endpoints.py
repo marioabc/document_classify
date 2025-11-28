@@ -250,10 +250,10 @@ def send_classification_callback(element_id: str, recipe_id: str, document_type:
         confidence = 0.0
 
     payload = {
-        "classify_document_type": document_type,
-        "classify_confidence": classify_confidence,
+        "classifyDocumentType": document_type,
+        "classifyConfidence": classify_confidence,
         "confidence": confidence,
-        "recipe_id": recipe_id
+        "recipeId": recipe_id
     }
 
     try:
@@ -384,7 +384,7 @@ async def classify_merged_document_async(
             "message": "Document processing started",
             "recipeId": recipeId,
             "elementId": elementId,
-            "files_count": len(files)
+            "filesCount": len(files)
         }
 
     except HTTPException:
