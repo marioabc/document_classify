@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Form
 from typing import List
 import time
 import logging
@@ -239,8 +239,8 @@ def send_classification_callback(element_id: str, document_type: str, confidence
     callback_url = f"http://localhost:9091/public/api/v1/checklists/elements/{element_id}/ai-validate"
 
     payload = {
-        "document_type": document_type,
-        "confidence": confidence
+        "classify_document_type": document_type,
+        "classify_confidence": confidence
     }
 
     try:
@@ -265,7 +265,7 @@ def send_classification_callback(element_id: str, document_type: str, confidence
         logger.error(f"Unexpected error sending callback: {str(e)}")
 
 
-def process_merged_document_async(element_id: str, files_data: List[tuple]):
+def process_merged_document_async(element_id: str, recipe_id: str, files_data: List[tuple]):
     """
     Process merged document classification in background and send callback
     files_data: List of tuples (file_id, file_path, filename)
@@ -273,7 +273,7 @@ def process_merged_document_async(element_id: str, files_data: List[tuple]):
     temp_files = []
 
     try:
-        logger.info(f"Background processing started for element {element_id}")
+        logger.info(f"Background processing started for element {element_id}, recipe {recipe_id}")
 
         # Extract text from all files
         all_text_parts = []
@@ -317,26 +317,28 @@ def process_merged_document_async(element_id: str, files_data: List[tuple]):
                 pass
 
 
-@router.post("/classify/merged/{element_id}", status_code=201)
+@router.post("/classify/merged/async", status_code=201)
 async def classify_merged_document_async(
-    element_id: str,
     background_tasks: BackgroundTasks,
+    recipeId: str = Form(...),
+    elementId: str = Form(...),
     files: List[UploadFile] = File(...)
 ):
     """
     Classify multiple files as ONE document (async version with callback)
+    - Accepts recipeId and elementId as form fields
     - Returns 201 immediately
     - Performs OCR and classification in background
     - Sends POST callback to external API with result
 
-    Callback URL: http://app:9091/public/api/v1/checklists/elements/{element_id}/ai-validate
+    Callback URL: http://localhost:9091/public/api/v1/checklists/elements/{elementId}/ai-validate
     Callback payload: {"document_type": "DOC_BADANIE_LK", "confidence": 0.95}
     """
     try:
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
 
-        logger.info(f"Received {len(files)} files for async processing (element: {element_id})")
+        logger.info(f"Received {len(files)} files for async processing (recipe: {recipeId}, element: {elementId})")
 
         # Save all files temporarily
         files_data = []
@@ -359,15 +361,16 @@ async def classify_merged_document_async(
             logger.info(f"  - Saved {file.filename} temporarily")
 
         # Schedule background processing
-        background_tasks.add_task(process_merged_document_async, element_id, files_data)
+        background_tasks.add_task(process_merged_document_async, elementId, recipeId, files_data)
 
-        logger.info(f"Background task scheduled for element {element_id}")
+        logger.info(f"Background task scheduled for recipe {recipeId}, element {elementId}")
 
-        # Return immediate response
+        # Return immediate response with 201
         return {
             "status": "accepted",
             "message": "Document processing started",
-            "element_id": element_id,
+            "recipeId": recipeId,
+            "elementId": elementId,
             "files_count": len(files)
         }
 
