@@ -3,7 +3,7 @@
 # Script to initialize Ollama with required model
 # This script pulls the model if it's not already available
 
-MODEL_NAME="${OLLAMA_MODEL:-llama3.2:3b}"
+MODEL_NAME="${OLLAMA_MODEL:-llama3.1:8b}"
 
 echo "Checking if model $MODEL_NAME is available..."
 

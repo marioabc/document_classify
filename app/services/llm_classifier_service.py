@@ -12,7 +12,7 @@ class LLMClassifierService:
     def __init__(self):
         self.enabled = False
         self.ollama_url = getattr(settings, 'OLLAMA_URL', 'http://localhost:11434')
-        self.model_name = getattr(settings, 'OLLAMA_MODEL', 'llama3.2:3b')
+        self.model_name = getattr(settings, 'OLLAMA_MODEL', 'llama3.1:8b')
 
         # Check if Ollama is available
         try:

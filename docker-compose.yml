@@ -30,7 +30,7 @@ services:
       - ollama_data:/root/.ollama
       - ./docker/init-ollama.sh:/init-ollama.sh
     environment:
-      - OLLAMA_MODEL=llama3.2:3b
+      - OLLAMA_MODEL=llama3.1:8b
     networks:
       - medical-network
     restart: unless-stopped
@@ -50,7 +50,7 @@ services:
       - ./docker/init-ollama.sh:/init-ollama.sh
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=llama3.2:3b
+      - OLLAMA_MODEL=llama3.1:8b
     networks:
       - medical-network
     command: /bin/bash /init-ollama.sh
