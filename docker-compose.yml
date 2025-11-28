@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: medical-doc-api
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+      - OLLAMA_URL=http://ollama:11434
+    env_file:
+      - .env
+    volumes:
+      - ./data/uploads:/app/data/uploads
+      - ./data/processed:/app/data/processed
+    depends_on:
+      - postgres
+      - redis
+      - ollama
+    networks:
+      - medical-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: medical-doc-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - medical-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: medical-doc-redis
+    networks:
+      - medical-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: medical-doc-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./docker/init-ollama.sh:/init-ollama.sh
+    environment:
+      - OLLAMA_MODEL=llama3.2:3b
+    networks:
+      - medical-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: medical-doc-ollama-init
+    depends_on:
+      - ollama
+    volumes:
+      - ./docker/init-ollama.sh:/init-ollama.sh
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:3b
+    networks:
+      - medical-network
+    command: /bin/bash /init-ollama.sh
+    restart: "no"
+
+volumes:
+  postgres_data:
+  ollama_data:
+
+networks:
+  medical-network:
+    driver: bridge
