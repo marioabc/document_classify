@@ -9,17 +9,6 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     API_PORT: int = 8000
 
-    # Database
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
-    POSTGRES_HOST: str = "postgres"
-    POSTGRES_PORT: int = 5432
-
-    # Redis
-    REDIS_HOST: str = "redis"
-    REDIS_PORT: int = 6379
-
     # OCR
     OCR_LANGUAGES: str = "pl,en"
     OCR_GPU: bool = False
@@ -36,10 +25,6 @@ class Settings(BaseSettings):
 
     # Logging
     LOG_LEVEL: str = "INFO"
-
-    @property
-    def database_url(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
     def ocr_languages_list(self) -> List[str]:

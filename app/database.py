@@ -2,10 +2,13 @@ from sqlalchemy import create_engine, Column, String, Integer, Float, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from app.config import settings
+# from app.config import settings
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Database functionality disabled - PostgreSQL removed from configuration
+# Uncomment and restore database_url in settings if you want to re-enable database support
+
+# engine = create_engine(settings.database_url, pool_pre_ping=True)
+# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
@@ -25,13 +28,13 @@ class DocumentRecord(Base):
     processing_time_ms = Column(Float, nullable=False)
 
 
-def init_db():
-    Base.metadata.create_all(bind=engine)
+# def init_db():
+#     Base.metadata.create_all(bind=engine)
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
