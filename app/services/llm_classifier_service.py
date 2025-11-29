@@ -123,7 +123,7 @@ WAŻNE: Zwróć TYLKO JSON, bez żadnego dodatkowego tekstu."""
                         "num_predict": 500
                     }
                 },
-                timeout=600  # Increased to 120s for llama3.1 8B on CPU
+                timeout=1200  # 20 minutes for CPU inference (llama3.1 8B is slow on CPU)
             )
 
             if response.status_code != 200:
