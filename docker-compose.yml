@@ -8,8 +8,6 @@ services:
     container_name: medical-doc-api
     ports:
       - "8000:8000"
-    environment:
-      - OLLAMA_URL=http://ollama:11434
     env_file:
       - .env
     volumes:
