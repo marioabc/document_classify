@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Callback
+    CALLBACK_URL: str
+
     @property
     def ocr_languages_list(self) -> List[str]:
         return [lang.strip() for lang in self.OCR_LANGUAGES.split(",")]

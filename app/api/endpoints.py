@@ -236,7 +236,7 @@ def send_classification_callback(element_id: str, recipe_id: str, document_type:
     """
     Send classification result to external API as callback
     """
-    callback_url = f"http://localhost:9091/public/api/v1/checklists/elements/{element_id}/ai-validate"
+    callback_url = settings.CALLBACK_URL.replace("{elementId}", element_id)
 
     # Calculate confidence based on recipe_id match and classify_confidence
     if recipe_id == document_type:
