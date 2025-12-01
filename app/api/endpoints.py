@@ -238,14 +238,9 @@ def send_classification_callback(element_id: str, recipe_id: str, document_type:
     """
     callback_url = settings.CALLBACK_URL.replace("{elementId}", element_id)
 
-    # Calculate confidence based on recipe_id match and classify_confidence
+    # Calculate confidence based on recipe_id match with document_type
     if recipe_id == document_type:
-        if classify_confidence > 0.75:
-            confidence = 1.0
-        elif classify_confidence >= 0.5:
-            confidence = 0.5
-        else:
-            confidence = 0.0
+        confidence = 1.0
     else:
         confidence = 0.0
 
