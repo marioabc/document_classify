@@ -21,7 +21,7 @@ services:
     image: ollama/ollama:latest
     container_name: medical-doc-ollama
     ports:
-      - "11434:11434"
+      - "11446:11446"
     volumes:
       - ollama_data:/root/.ollama
       - ./docker/init-ollama.sh:/init-ollama.sh
@@ -31,7 +31,7 @@ services:
       - medical-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "-f", "http://localhost:11446/api/tags"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -45,7 +45,7 @@ services:
     volumes:
       - ./docker/init-ollama.sh:/init-ollama.sh
     environment:
-      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_HOST=http://ollama:11446
       - OLLAMA_MODEL=llama3.1:8b
     networks:
       - medical-network
